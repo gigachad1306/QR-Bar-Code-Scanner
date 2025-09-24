@@ -280,6 +280,7 @@
             <button id="startBtn">Start Camera</button>
             <button id="stopBtn" disabled>Stop Camera</button>
             <button id="switchBtn" disabled>Switch Camera</button>
+            <button id="clearResultBtn" style="display: none;">Clear Result</button>
         </div>
 
         <div id="status" class="status info">Click "Start Camera" to begin scanning</div>
@@ -290,13 +291,16 @@
         </div>
 
         <div class="history">
-            <h3>Scan History</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0;">Scan History</h3>
+                <button id="clearHistoryBtn" class="clear-btn" onclick="scanner.clearHistory()">Clear All</button>
+            </div>
             <div id="historyContainer"></div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qr-scanner/1.4.2/qr-scanner.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
 
     <script>
         class Scanner {
@@ -305,6 +309,7 @@
                 this.startBtn = document.getElementById('startBtn');
                 this.stopBtn = document.getElementById('stopBtn');
                 this.switchBtn = document.getElementById('switchBtn');
+                this.clearResultBtn = document.getElementById('clearResultBtn');
                 this.status = document.getElementById('status');
                 this.result = document.getElementById('result');
                 this.resultContent = document.getElementById('resultContent');
@@ -325,6 +330,7 @@
                 this.startBtn.addEventListener('click', () => this.startScanning());
                 this.stopBtn.addEventListener('click', () => this.stopScanning());
                 this.switchBtn.addEventListener('click', () => this.switchCamera());
+                this.clearResultBtn.addEventListener('click', () => this.clearResult());
             }
 
             async startScanning() {
@@ -369,21 +375,27 @@
             }
 
             startQRScanning() {
-                // Simple QR detection using canvas
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
                 this.qrInterval = setInterval(() => {
                     if (this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
                         canvas.width = this.video.videoWidth;
                         canvas.height = this.video.videoHeight;
                         ctx.drawImage(this.video, 0, 0);
                         
                         try {
                             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                            // Simple QR detection would go here
-                            // For now, we'll use a more basic approach
+                            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                                inversionAttempts: "dontInvert",
+                            });
+                            
+                            if (code) {
+                                this.onScanSuccess(code.data, 'QR Code');
+                            }
                         } catch (error) {
                             // Handle canvas errors silently
+                            console.log('QR scan error:', error);
                         }
                     }
                 }, 100);
@@ -503,11 +515,18 @@
             showResult(data, type) {
                 this.resultContent.textContent = data;
                 this.result.style.display = 'block';
+                this.clearResultBtn.style.display = 'inline-block';
                 
                 // Check if it's a URL and make it clickable
                 if (this.isUrl(data)) {
                     this.resultContent.innerHTML = `<a href="${data}" target="_blank" style="color: #667eea; text-decoration: underline;">${data}</a>`;
                 }
+            }
+
+            clearResult() {
+                this.result.style.display = 'none';
+                this.clearResultBtn.style.display = 'none';
+                this.setStatus('Result cleared - Continue scanning', 'info');
             }
 
             isUrl(string) {
@@ -566,6 +585,12 @@
 
             removeFromHistory(index) {
                 this.scanHistory.splice(index, 1);
+                this.saveHistory();
+                this.updateHistoryDisplay();
+            }
+
+            clearHistory() {
+                this.scanHistory = [];
                 this.saveHistory();
                 this.updateHistoryDisplay();
             }
