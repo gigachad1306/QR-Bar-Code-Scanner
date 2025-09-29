@@ -1,120 +1,275 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>QR & Barcode Scanner</title>
   <style>
+    :root {
+      --primary: #5468ff;
+      --primary-dark: #2d3579;
+      --accent: #9ab3ff;
+      --bg-gradient: linear-gradient(135deg, #5468ff 0%, #846aff 100%);
+      --success: #10b981;
+      --error: #ef4444;
+      --info: #e0e7ff;
+      --card-bg: #fff;
+      --border-light: #e5e7eb;
+      --shadow: 0 6px 24px rgba(26, 34, 94, 0.10);
+      --radius: 14px;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      color: #333;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
       min-height: 100vh;
-      padding: 20px;
+      margin: 0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--bg-gradient);
+      background-attachment: fixed;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      color: #222e3a;
+      padding: 40px 14px;
     }
+
     .container {
-      background: #fff;
-      padding: 20px;
-      border-radius: 15px;
-      max-width: 700px;
+      background: var(--card-bg);
+      max-width: 520px;
       width: 100%;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      border-radius: var(--radius);
+      padding: 30px 28px 24px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 26px;
     }
-    h1 { text-align: center; margin-bottom: 20px; }
-    .scanner-container {
+
+    .header {
+      text-align: center;
+    }
+    .header h1 {
+      font-size: 1.7rem;
+      font-weight: 600;
+      margin-bottom: 0.25em;
+      letter-spacing: 0.01em;
+      color: var(--primary-dark);
+    }
+    .header p {
+      color: #646c82;
+      font-size: 1rem;
+      margin: 0;
+    }
+
+    .scanner-section {
+      margin-bottom: 20px;
+    }
+    .scanner-view {
       position: relative;
-      margin-bottom: 15px;
       border-radius: 10px;
       overflow: hidden;
-      background: black;
+      background: #1e293b;
       min-height: 320px;
+      margin-bottom: 10px;
+      border: 1.5px solid var(--border-light);
     }
-    #video { width: 100%; height: 320px; object-fit: cover; }
+    #video {
+      width: 100%;
+      min-height: 320px;
+      object-fit: cover;
+      background: #0d1331;
+      display: block;
+    }
     canvas { display: none; }
-    .controls { text-align: center; margin: 15px 0; }
-    button {
-      padding: 10px 15px;
-      margin: 5px;
+    .controls {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin: 8px 0 0 0;
+    }
+    button, .btn {
+      font-size: 1rem;
+      padding: 9px 15px;
       border: none;
       border-radius: 8px;
-      font-weight: bold;
       cursor: pointer;
+      font-weight: 500;
+      transition: background 0.15s;
     }
-    .active { background: #667eea; color: #fff; }
-    .inactive { background: #ccc; }
-    .status { text-align: center; padding: 8px; margin: 10px 0; border-radius: 8px; }
-    .result { background: #f0f0ff; padding: 15px; border-radius: 10px; }
-    .history-section { margin-top: 20px; }
-    .history-header { display: flex; justify-content: space-between; align-items: center; }
-    .history-list { margin-top: 10px; }
-    .history-item {
-      background: #fafafa;
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-neutral {
+      background: #e0e7ff;
+      color: #222e3a;
+    }
+    .btn-danger {
+      background: var(--error);
+      color: #fff;
+    }
+    .btn:disabled,
+    button[disabled] {
+      background: #c9ced6 !important;
+      color: #888 !important;
+      cursor: not-allowed;
+      opacity: 0.74;
+    }
+    .mode-switch button {
+      min-width: 115px;
+    }
+    .active { background: var(--primary); color: #fff; }
+    .inactive { background: #ebedf4; color: #222e3a; }
+
+    /* Visual feedback/status */
+    .status {
+      text-align: center;
       padding: 10px;
       border-radius: 8px;
-      border: 1px solid #ddd;
-      margin-bottom: 6px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      background: var(--info);
+      margin: 10px 0;
+      font-size: 1.04em;
+      font-weight: 500;
+      box-shadow: 0px 1px 3px #f4f5fc inset;
     }
-    .delete-btn { background: #ff6b6b; color: #fff; font-size: 14px; padding: 4px 8px; border-radius: 5px; cursor: pointer; }
-    .clear-btn { background: #ff6b6b; color: #fff; font-size: 14px; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
-    .reset-btn { background: #333; color: #fff; padding: 8px 14px; border-radius: 6px; cursor: pointer; margin-top: 10px; display:block; }
+    .status.success { background: #e5fbee; color: var(--success); }
+    .status.error   { background: #ffeeed; color: var(--error); }
+    .status.info    { background: var(--info); color: var(--primary-dark); }
+
+    .result {
+      background: #f6f8fd;
+      padding: 16px;
+      border-radius: 10px;
+      font-size: 1.07em;
+      margin-top: 2px;
+      word-break: break-all;
+      display: none;
+      border: 1.5px solid var(--accent);
+    }
+
+    /* Histories */
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+    .section-title h3 {
+      margin: 0; font-size: 1.11em; font-weight: 600;
+      color: var(--primary-dark);
+    }
+    .clear-btn { margin-left: 10px; }
+    .history-list {
+      margin-top: 8px;
+      min-height: 32px;
+    }
+    .history-item {
+      background: #f4f5fc;
+      padding: 12px 14px;
+      border-radius: 7px;
+      border: 1px solid var(--border-light);
+      margin-bottom: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 1em;
+      gap: 10px;
+      word-break: break-all;
+    }
+    .history-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .history-time {
+      font-size: 0.93em;
+      color: #9096ac;
+      margin-top: 2.5px;
+    }
+    .delete-btn {
+      background: var(--error);
+      color: #fff;
+      font-size: 16px;
+      width: 28px;
+      height: 28px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      font-weight: bold;
+      transition: background 0.15s;
+    }
+    .delete-btn:hover { background: #ca1c1c; }
+    .reset-btn {
+      margin-top: 18px;
+      width: 100%;
+      background: #222e3a;
+      color: #fff;
+      padding: 11px;
+      border-radius: 8px;
+      font-size: 1.07em;
+    }
+    @media (max-width: 700px) {
+      .container { padding: 14px 4vw 18px; }
+      .scanner-view { min-height: 210px; }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>📱 Scanner</h1>
-
-    <!-- Mode selection -->
-    <div class="controls">
-      <button id="qrModeBtn" class="active">QR Scanner</button>
-      <button id="barcodeModeBtn" class="inactive">Barcode Scanner</button>
+  <div class="container" role="main" aria-label="QR and Barcode Scanner Application">
+    <div class="header">
+      <h1>&#128247; QR &amp; Barcode Scanner</h1>
+      <p>Scan and manage QR codes and barcodes directly in your browser.</p>
     </div>
 
-    <!-- Scanner view -->
-    <div class="scanner-container">
-      <video id="video" playsinline></video>
-      <canvas id="canvas"></canvas>
+    <div class="mode-switch controls" aria-label="Mode Selection">
+      <button id="qrModeBtn" class="active" aria-pressed="true">QR Scanner</button>
+      <button id="barcodeModeBtn" class="inactive" aria-pressed="false">Barcode Scanner</button>
     </div>
 
-    <!-- Start/Stop -->
-    <div class="controls">
-      <button id="startBtn">Start</button>
-      <button id="stopBtn" disabled>Stop</button>
-    </div>
+    <section class="scanner-section" aria-label="Scanner">
+      <div class="scanner-view">
+        <video id="video" playsinline aria-label="Live camera feed"></video>
+        <canvas id="canvas"></canvas>
+      </div>
+      <div class="controls">
+        <button id="startBtn" class="btn-primary">Start</button>
+        <button id="stopBtn" class="btn-neutral" disabled>Stop</button>
+      </div>
+    </section>
 
-    <div id="status" class="status">Select scanner type and click Start</div>
-    <div id="result" class="result" style="display:none;"></div>
+    <div id="status" class="status info" aria-live="polite">Choose scanner type and click Start.</div>
+    <div id="result" class="result" aria-live="polite"></div>
 
     <!-- QR History -->
-    <div class="history-section">
-      <div class="history-header">
+    <section aria-label="QR Code Scan History">
+      <div class="section-title">
         <h3>QR History</h3>
-        <button class="clear-btn" onclick="clearHistory('qr')">Clear All</button>
+        <button class="clear-btn btn-neutral" onclick="clearHistory('qr')" aria-label="Clear all QR history">Clear All</button>
       </div>
       <div id="qrHistory" class="history-list"></div>
-    </div>
+    </section>
 
     <!-- Barcode History -->
-    <div class="history-section">
-      <div class="history-header">
+    <section aria-label="Barcode Scan History">
+      <div class="section-title">
         <h3>Barcode History</h3>
-        <button class="clear-btn" onclick="clearHistory('barcode')">Clear All</button>
+        <button class="clear-btn btn-neutral" onclick="clearHistory('barcode')" aria-label="Clear all Barcode history">Clear All</button>
       </div>
       <div id="barcodeHistory" class="history-list"></div>
-    </div>
+    </section>
 
-    <!-- Reset all -->
-    <button class="reset-btn" onclick="resetAll()">Reset All Histories</button>
+    <button class="reset-btn" onclick="resetAll()" aria-label="Reset all scan histories">Reset All Histories</button>
   </div>
 
+  <!-- LIBRARIES -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
+
   <script>
+    // ------ DOM and State ------
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -136,43 +291,59 @@
     let qrHistory = [];
     let barcodeHistory = [];
 
+    // ------ UI Mode Switch ------
     qrModeBtn.onclick = () => switchMode('qr');
     barcodeModeBtn.onclick = () => switchMode('barcode');
     startBtn.onclick = startScanning;
     stopBtn.onclick = stopScanning;
 
     function switchMode(newMode) {
+      if (mode === newMode) return;
       mode = newMode;
       qrModeBtn.classList.toggle('active', newMode === 'qr');
       qrModeBtn.classList.toggle('inactive', newMode !== 'qr');
+      qrModeBtn.setAttribute('aria-pressed', newMode === 'qr');
       barcodeModeBtn.classList.toggle('active', newMode === 'barcode');
       barcodeModeBtn.classList.toggle('inactive', newMode !== 'barcode');
+      barcodeModeBtn.setAttribute('aria-pressed', newMode === 'barcode');
       setStatus(`Mode: ${mode.toUpperCase()}`, 'info');
+      stopScanning();
     }
 
+    // ------ Scanner Logic ------
     async function startScanning() {
       try {
         setStatus('Starting camera...', 'info');
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         video.srcObject = stream;
         await video.play();
-
         scanning = true;
+
         startBtn.disabled = true;
         stopBtn.disabled = false;
-        setStatus(`Scanning for ${mode.toUpperCase()}...`, 'success');
+        setStatus(`Scanning for ${mode === 'qr' ? 'QR Codes' : 'Barcodes'}...`, 'success');
+        resultEl.style.display = 'none';
 
-        if (mode === 'qr') scanQR();
-        else startBarcodeScanner();
+        if (mode === 'qr') {
+          scanQR();
+        } else {
+          startBarcodeScanner();
+        }
       } catch (err) {
-        setStatus('Camera error: ' + err.message, 'error');
+        setStatus('Camera error: ' + (err.message ?? err), 'error');
       }
     }
 
     function stopScanning() {
       scanning = false;
-      if (stream) { stream.getTracks().forEach(track => track.stop()); stream = null; }
-      if (quaggaInitialized) { Quagga.stop(); quaggaInitialized = false; }
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      if (quaggaInitialized) {
+        Quagga.stop();
+        quaggaInitialized = false;
+      }
       video.srcObject = null;
       startBtn.disabled = false;
       stopBtn.disabled = true;
@@ -184,37 +355,43 @@
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
-        if (code && code.data) handleScan(code.data, 'QR Code');
+        if (code?.data) handleScan(code.data, 'QR Code');
       }
       requestAnimationFrame(scanQR);
     }
 
     function startBarcodeScanner() {
       Quagga.init({
-        inputStream: { name: "Live", type: "LiveStream", target: video },
-        decoder: { readers: ["code_128_reader","ean_reader","ean_8_reader","code_39_reader","upc_reader","upc_e_reader"] }
-      }, function(err) {
-        if (err) { console.log(err); return; }
-        Quagga.start(); quaggaInitialized = true;
-      });
-      Quagga.onDetected(function(data) {
-        if (data && data.codeResult && data.codeResult.code) {
-          handleScan(data.codeResult.code, data.codeResult.format || 'Barcode');
+        inputStream: { type: "LiveStream", target: video },
+        decoder: {
+          readers: [
+            "code_128_reader", "ean_reader",
+            "ean_8_reader", "code_39_reader",
+            "upc_reader", "upc_e_reader"
+          ]
         }
+      }, function(err) {
+        if (err) { setStatus('Barcode Scanner error: ' + err, 'error'); return; }
+        Quagga.start();
+        quaggaInitialized = true;
+      });
+      Quagga.offDetected();
+      Quagga.onDetected(function(data) {
+        if (data?.codeResult?.code)
+          handleScan(data.codeResult.code, data.codeResult.format || 'Barcode');
       });
     }
 
     function handleScan(code, type) {
       const now = Date.now();
-      if (code === lastCode && (now - lastTime) < 3000) return;
+      if (code === lastCode && (now - lastTime) < 2500) return;
       lastCode = code; lastTime = now;
-
       setStatus(`${type} detected!`, 'success');
+      resultEl.innerHTML = `<strong>${type}:</strong><br/>${escapeHtml(code)}`;
       resultEl.style.display = 'block';
-      resultEl.innerHTML = `<b>${type}</b><br>${escapeHtml(code)}`;
 
       if (mode === 'qr') {
         qrHistory.unshift({ code, time: new Date().toLocaleString() });
@@ -225,50 +402,49 @@
       }
     }
 
+    // ------ History ------
     function updateHistory(type) {
-      let targetEl = (type === 'qr') ? qrHistoryEl : barcodeHistoryEl;
-      let historyArr = (type === 'qr') ? qrHistory : barcodeHistory;
+      const targetEl = type === 'qr' ? qrHistoryEl : barcodeHistoryEl;
+      const historyArr = type === 'qr' ? qrHistory : barcodeHistory;
 
       if (historyArr.length === 0) {
-        targetEl.innerHTML = `<p style="color:#999;">No scans yet</p>`;
+        targetEl.innerHTML = `<div style="color:#b0b5c6;font-size:1em;">No scans yet</div>`;
         return;
       }
 
       targetEl.innerHTML = historyArr.map((item, i) =>
         `<div class="history-item">
-          <div>
-            <div><b>${escapeHtml(item.code)}</b></div>
-            <div style="font-size:12px;color:#666;">${item.time}</div>
+          <div class="history-info">
+            <span><strong>${escapeHtml(item.code)}</strong></span>
+            <span class="history-time">${escapeHtml(item.time)}</span>
           </div>
-          <button class="delete-btn" onclick="removeHistory('${type}', ${i})">×</button>
+          <button class="delete-btn" aria-label="Delete History Item" onclick="removeHistory('${type}',${i})">&times;</button>
         </div>`
       ).join('');
     }
 
-    function removeHistory(type, index) {
+    window.removeHistory = function(type, index) {
       if (type === 'qr') qrHistory.splice(index, 1);
       else barcodeHistory.splice(index, 1);
       updateHistory(type);
-    }
-
-    function clearHistory(type) {
+    };
+    window.clearHistory = function(type) {
       if (type === 'qr') qrHistory = [];
       else barcodeHistory = [];
       updateHistory(type);
-    }
-
-    function resetAll() {
+    };
+    window.resetAll = function() {
       qrHistory = [];
       barcodeHistory = [];
       updateHistory('qr');
       updateHistory('barcode');
       resultEl.style.display = 'none';
-      setStatus("All histories reset", 'info');
-    }
+      setStatus('All histories reset', 'info');
+    };
 
     function setStatus(msg, type) {
       statusEl.textContent = msg;
-      statusEl.style.background = type === 'error' ? '#ff6b6b' : (type === 'success' ? '#00ff88' : '#74b9ff');
+      statusEl.className = 'status ' + (type || 'info');
     }
 
     function escapeHtml(text) {
@@ -277,7 +453,7 @@
       return div.innerHTML;
     }
 
-    // Init history placeholders
+    // ---- Init ----
     updateHistory('qr');
     updateHistory('barcode');
   </script>
