@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR & Barcode Scanner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .scanner-container {
+            position: relative;
+            margin-bottom: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            background: #000;
+            min-height: 400px;
+        }
+
+        #video {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+            display: block;
+        }
+
+        canvas {
+            display: none;
+        }
+
+        .scan-line {
+            position: absolute;
+            top: 50%;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+            animation: scan 2s ease-in-out infinite;
+        }
+
+        @keyframes scan {
+            0%, 100% { transform: translateY(-100px); }
+            50% { transform: translateY(100px); }
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 120px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #00ff88;
+            color: #000;
+        }
+
+        .status.error {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .status.info {
+            background: #74b9ff;
+            color: white;
+        }
+
+        .result {
+            background: #f8f9ff;
+            border: 2px solid #667eea;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            word-wrap: break-word;
+        }
+
+        .result h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .result-content {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .result-content a {
+            color: #667eea;
+            text-decoration: underline;
+            word-break: break-all;
+        }
+
+        .history {
+            margin-top: 30px;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .history h3 {
+            color: #333;
+            margin: 0;
+        }
+
+        .history-item {
+            background: white;
+            border: 1px solid #e0e6ff;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-content {
+            flex: 1;
+            margin-right: 15px;
+        }
+
+        .history-type {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 5px;
+        }
+
+        .history-text {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #666;
+            word-break: break-all;
+        }
+
+        .history-time {
+            font-size: 11px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .clear-btn {
+            background: #ff6b6b;
+            font-size: 18px;
+            padding: 5px 12px;
+            min-width: auto;
+            flex: none;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+
+            #video {
+                height: 300px;
+            }
+
+            button {
+                min-width: 100px;
+                font-size: 14px;
+                padding: 10px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Scanner</h1>
+        
+        <div class="scanner-container">
+            <video id="video" playsinline></video>
+            <div class="scan-line"></div>
+            <canvas id="canvas"></canvas>
+        </div>
+
+        <div class="controls">
+            <button id="startBtn">Start</button>
+            <button id="stopBtn" disabled>Stop</button>
+            <button id="switchBtn" disabled>Switch</button>
+        </div>
+
+        <div id="status" class="status info">Click Start to begin</div>
+
+        <div id="result" class="result" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin: 0;">Result:</h3>
+                <button class="clear-btn" onclick="clearResult()">×</button>
+            </div>
+            <div id="resultContent" class="result-content"></div>
+        </div>
+
+        <div class="history">
+            <div class="history-header">
+                <h3>History</h3>
+                <button class="clear-btn" onclick="clearAllHistory()">Clear</button>
+            </div>
+            <div id="historyContainer"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const switchBtn = document.getElementById('switchBtn');
+        const status = document.getElementById('status');
+        const result = document.getElementById('result');
+        const resultContent = document.getElementById('resultContent');
+        const historyContainer = document.getElementById('historyContainer');
+
+        let stream = null;
+        let scanning = false;
+        let facingMode = 'environment';
+        let lastCode = '';
+        let lastTime = 0;
+        let history = [];
+        let quaggaInitialized = false;
+
+        startBtn.onclick = startScanning;
+        stopBtn.onclick = stopScanning;
+        switchBtn.onclick = switchCamera;
+
+        updateHistory();
+
+        async function startScanning() {
+            try {
+                setStatus('Starting camera...', 'info');
+
+                const constraints = {
+                    video: {
+                        facingMode: facingMode,
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                await video.play();
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                scanning = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                switchBtn.disabled = false;
+
+                setStatus('Scanning... Point at code', 'success');
+
+                // Start QR scanning
+                scanQR();
+
+                // Start barcode scanning
+                startBarcodeScanner();
+
+            } catch (err) {
+                setStatus('Camera error: ' + err.message, 'error');
+                console.error(err);
+            }
+        }
+
+        function stopScanning() {
+            scanning = false;
+
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+
+            if (quaggaInitialized) {
+                Quagga.stop();
+                quaggaInitialized = false;
+            }
+
+            video.srcObject = null;
+
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            switchBtn.disabled = true;
+
+            setStatus('Stopped', 'info');
+        }
+
+        function switchCamera() {
+            facingMode = facingMode === 'environment' ? 'user' : 'environment';
+            stopScanning();
+            setTimeout(startScanning, 300);
+        }
+
+        function scanQR() {
+            if (!scanning) return;
+
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
+                });
+
+                if (code && code.data) {
+                    handleScan(code.data, 'QR Code');
+                }
+            }
+
+            requestAnimationFrame(scanQR);
+        }
+
+        function startBarcodeScanner() {
+            const config = {
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: video,
+                    constraints: {
+                        facingMode: facingMode
+                    }
+                },
+                decoder: {
+                    readers: [
+                        "code_128_reader",
+                        "ean_reader",
+                        "ean_8_reader",
+                        "code_39_reader",
+                        "upc_reader",
+                        "upc_e_reader"
+                    ],
+                    multiple: false
+                },
+                locate: true,
+                locator: {
+                    halfSample: true,
+                    patchSize: "medium"
+                },
+                numOfWorkers: 0,
+                frequency: 10
+            };
+
+            Quagga.init(config, function(err) {
+                if (err) {
+                    console.log('Quagga init error:', err);
+                    return;
+                }
+                Quagga.start();
+                quaggaInitialized = true;
+            });
+
+            Quagga.onDetected(function(data) {
+                if (data && data.codeResult && data.codeResult.code) {
+                    const code = data.codeResult.code;
+                    const format = data.codeResult.format || 'Barcode';
+                    handleScan(code, format);
+                }
+            });
+        }
+
+        function handleScan(code, type) {
+            const now = Date.now();
+            
+            // Prevent duplicate scans
+            if (code === lastCode && (now - lastTime) < 3000) {
+                return;
+            }
+
+            lastCode = code;
+            lastTime = now;
+
+            setStatus('Code detected!', 'success');
+            showResult(code, type);
+            addToHistory(code, type);
+
+            // Vibrate
+            if (navigator.vibrate) {
+                navigator.vibrate(200);
+            }
+
+            // Beep
+            beep();
+        }
+
+        function showResult(code, type) {
+            let html = '';
+            
+            if (isURL(code)) {
+                html = `<div style="margin-bottom: 8px;"><strong>${type}</strong></div><a href="${code}" target="_blank">${code}</a>`;
+            } else {
+                html = `<div style="margin-bottom: 8px;"><strong>${type}</strong></div>${escapeHtml(code)}`;
+            }
+
+            resultContent.innerHTML = html;
+            result.style.display = 'block';
+        }
+
+        function clearResult() {
+            result.style.display = 'none';
+            lastCode = '';
+        }
+
+        function isURL(str) {
+            try {
+                new URL(str);
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
+        function addToHistory(code, type) {
+            history.unshift({
+                code: code,
+                type: type,
+                time: new Date().toLocaleString()
+            });
+
+            if (history.length > 15) {
+                history = history.slice(0, 15);
+            }
+
+            updateHistory();
+        }
+
+        function updateHistory() {
+            if (history.length === 0) {
+                historyContainer.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No scans yet</p>';
+                return;
+            }
+
+            historyContainer.innerHTML = history.map((item, i) => `
+                <div class="history-item">
+                    <div class="history-content">
+                        <div class="history-type">${escapeHtml(item.type)}</div>
+                        <div class="history-text">${escapeHtml(item.code.substring(0, 60))}${item.code.length > 60 ? '...' : ''}</div>
+                        <div class="history-time">${item.time}</div>
+                    </div>
+                    <button class="clear-btn" onclick="removeHistory(${i})">×</button>
+                </div>
+            `).join('');
+        }
+
+        function removeHistory(index) {
+            history.splice(index, 1);
+            updateHistory();
+        }
+
+        function clearAllHistory() {
+            history = [];
+            updateHistory();
+        }
+
+        function setStatus(msg, type) {
+            status.textContent = msg;
+            status.className = `status ${type}`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function beep() {
+            try {
+                const ac = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ac.createOscillator();
+                const gain = ac.createGain();
+                
+                osc.connect(gain);
+                gain.connect(ac.destination);
+                
+                osc.frequency.value = 800;
+                gain.gain.value = 0.3;
+                
+                osc.start(ac.currentTime);
+                osc.stop(ac.currentTime + 0.15);
+            } catch(e) {}
+        }
+
+        // Stop on page hide
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && scanning) {
+                stopScanning();
+            }
+        });
+    </script>
+</body>
+</html>
