@@ -19,14 +19,11 @@
       background: #fff;
       padding: 20px;
       border-radius: 15px;
-      max-width: 600px;
+      max-width: 700px;
       width: 100%;
       box-shadow: 0 10px 25px rgba(0,0,0,0.2);
     }
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
+    h1 { text-align: center; margin-bottom: 20px; }
     .scanner-container {
       position: relative;
       margin-bottom: 15px;
@@ -35,15 +32,11 @@
       background: black;
       min-height: 320px;
     }
-    #video {
-      width: 100%;
-      height: 320px;
-      object-fit: cover;
-    }
+    #video { width: 100%; height: 320px; object-fit: cover; }
     canvas { display: none; }
     .controls { text-align: center; margin: 15px 0; }
     button {
-      padding: 10px 20px;
+      padding: 10px 15px;
       margin: 5px;
       border: none;
       border-radius: 8px;
@@ -54,13 +47,29 @@
     .inactive { background: #ccc; }
     .status { text-align: center; padding: 8px; margin: 10px 0; border-radius: 8px; }
     .result { background: #f0f0ff; padding: 15px; border-radius: 10px; }
+    .history-section { margin-top: 20px; }
+    .history-header { display: flex; justify-content: space-between; align-items: center; }
+    .history-list { margin-top: 10px; }
+    .history-item {
+      background: #fafafa;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .delete-btn { background: #ff6b6b; color: #fff; font-size: 14px; padding: 4px 8px; border-radius: 5px; cursor: pointer; }
+    .clear-btn { background: #ff6b6b; color: #fff; font-size: 14px; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+    .reset-btn { background: #333; color: #fff; padding: 8px 14px; border-radius: 6px; cursor: pointer; margin-top: 10px; display:block; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>📱 Scanner</h1>
 
-    <!-- Scanner type selection -->
+    <!-- Mode selection -->
     <div class="controls">
       <button id="qrModeBtn" class="active">QR Scanner</button>
       <button id="barcodeModeBtn" class="inactive">Barcode Scanner</button>
@@ -72,7 +81,7 @@
       <canvas id="canvas"></canvas>
     </div>
 
-    <!-- Start/Stop controls -->
+    <!-- Start/Stop -->
     <div class="controls">
       <button id="startBtn">Start</button>
       <button id="stopBtn" disabled>Stop</button>
@@ -80,6 +89,27 @@
 
     <div id="status" class="status">Select scanner type and click Start</div>
     <div id="result" class="result" style="display:none;"></div>
+
+    <!-- QR History -->
+    <div class="history-section">
+      <div class="history-header">
+        <h3>QR History</h3>
+        <button class="clear-btn" onclick="clearHistory('qr')">Clear All</button>
+      </div>
+      <div id="qrHistory" class="history-list"></div>
+    </div>
+
+    <!-- Barcode History -->
+    <div class="history-section">
+      <div class="history-header">
+        <h3>Barcode History</h3>
+        <button class="clear-btn" onclick="clearHistory('barcode')">Clear All</button>
+      </div>
+      <div id="barcodeHistory" class="history-list"></div>
+    </div>
+
+    <!-- Reset all -->
+    <button class="reset-btn" onclick="resetAll()">Reset All Histories</button>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
@@ -94,13 +124,17 @@
     const resultEl = document.getElementById('result');
     const qrModeBtn = document.getElementById('qrModeBtn');
     const barcodeModeBtn = document.getElementById('barcodeModeBtn');
+    const qrHistoryEl = document.getElementById('qrHistory');
+    const barcodeHistoryEl = document.getElementById('barcodeHistory');
 
     let stream = null;
     let scanning = false;
-    let mode = 'qr'; // default
+    let mode = 'qr';
     let lastCode = '';
     let lastTime = 0;
     let quaggaInitialized = false;
+    let qrHistory = [];
+    let barcodeHistory = [];
 
     qrModeBtn.onclick = () => switchMode('qr');
     barcodeModeBtn.onclick = () => switchMode('barcode');
@@ -126,12 +160,10 @@
         scanning = true;
         startBtn.disabled = true;
         stopBtn.disabled = false;
-
         setStatus(`Scanning for ${mode.toUpperCase()}...`, 'success');
 
         if (mode === 'qr') scanQR();
         else startBarcodeScanner();
-
       } catch (err) {
         setStatus('Camera error: ' + err.message, 'error');
       }
@@ -139,14 +171,8 @@
 
     function stopScanning() {
       scanning = false;
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-      }
-      if (quaggaInitialized) {
-        Quagga.stop();
-        quaggaInitialized = false;
-      }
+      if (stream) { stream.getTracks().forEach(track => track.stop()); stream = null; }
+      if (quaggaInitialized) { Quagga.stop(); quaggaInitialized = false; }
       video.srcObject = null;
       startBtn.disabled = false;
       stopBtn.disabled = true;
@@ -169,13 +195,11 @@
     function startBarcodeScanner() {
       Quagga.init({
         inputStream: { name: "Live", type: "LiveStream", target: video },
-        decoder: { readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader", "upc_reader", "upc_e_reader"] }
+        decoder: { readers: ["code_128_reader","ean_reader","ean_8_reader","code_39_reader","upc_reader","upc_e_reader"] }
       }, function(err) {
         if (err) { console.log(err); return; }
-        Quagga.start();
-        quaggaInitialized = true;
+        Quagga.start(); quaggaInitialized = true;
       });
-
       Quagga.onDetected(function(data) {
         if (data && data.codeResult && data.codeResult.code) {
           handleScan(data.codeResult.code, data.codeResult.format || 'Barcode');
@@ -186,11 +210,60 @@
     function handleScan(code, type) {
       const now = Date.now();
       if (code === lastCode && (now - lastTime) < 3000) return;
-      lastCode = code;
-      lastTime = now;
+      lastCode = code; lastTime = now;
+
       setStatus(`${type} detected!`, 'success');
       resultEl.style.display = 'block';
       resultEl.innerHTML = `<b>${type}</b><br>${escapeHtml(code)}`;
+
+      if (mode === 'qr') {
+        qrHistory.unshift({ code, time: new Date().toLocaleString() });
+        updateHistory('qr');
+      } else {
+        barcodeHistory.unshift({ code, time: new Date().toLocaleString() });
+        updateHistory('barcode');
+      }
+    }
+
+    function updateHistory(type) {
+      let targetEl = (type === 'qr') ? qrHistoryEl : barcodeHistoryEl;
+      let historyArr = (type === 'qr') ? qrHistory : barcodeHistory;
+
+      if (historyArr.length === 0) {
+        targetEl.innerHTML = `<p style="color:#999;">No scans yet</p>`;
+        return;
+      }
+
+      targetEl.innerHTML = historyArr.map((item, i) =>
+        `<div class="history-item">
+          <div>
+            <div><b>${escapeHtml(item.code)}</b></div>
+            <div style="font-size:12px;color:#666;">${item.time}</div>
+          </div>
+          <button class="delete-btn" onclick="removeHistory('${type}', ${i})">×</button>
+        </div>`
+      ).join('');
+    }
+
+    function removeHistory(type, index) {
+      if (type === 'qr') qrHistory.splice(index, 1);
+      else barcodeHistory.splice(index, 1);
+      updateHistory(type);
+    }
+
+    function clearHistory(type) {
+      if (type === 'qr') qrHistory = [];
+      else barcodeHistory = [];
+      updateHistory(type);
+    }
+
+    function resetAll() {
+      qrHistory = [];
+      barcodeHistory = [];
+      updateHistory('qr');
+      updateHistory('barcode');
+      resultEl.style.display = 'none';
+      setStatus("All histories reset", 'info');
     }
 
     function setStatus(msg, type) {
@@ -203,6 +276,10 @@
       div.textContent = text;
       return div.innerHTML;
     }
+
+    // Init history placeholders
+    updateHistory('qr');
+    updateHistory('barcode');
   </script>
 </body>
 </html>
